@@ -9,6 +9,7 @@ on:
       - '.github/workflows/**'
       - 'files/**'
       - 'patches/**'
+      - 'custom_packages/**'
       - 'seed.config'
 
 jobs:
@@ -72,6 +73,13 @@ jobs:
 
           # 4. Driver ath9k: Tắt giới hạn regulatory lock cứng
           find package/kernel/mac80211/ -type f -name "regd.c" -exec sed -i 's/if (country == CTRY_DEFAULT)/if (0)/g' {} + || true
+
+          # 5. Upgrade Dropbear to 2020.81 (Ed25519, Curve25519 & Chacha20-Poly1305)
+          if [ -d "../custom_packages/dropbear" ]; then
+            echo "Upgrading Dropbear package..."
+            rm -rf package/network/services/dropbear
+            cp -r ../custom_packages/dropbear package/network/services/dropbear
+          fi
 
       - name: Configure Target & Packages
         run: |
