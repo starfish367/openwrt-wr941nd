@@ -19,6 +19,8 @@ jobs:
     container:
       image: ubuntu:20.04
       options: --user root
+    permissions:
+      contents: write
     env:
       FORCE_UNSAFE_CONFIGURE: 1
 
@@ -99,9 +101,16 @@ jobs:
         run: |
           mkdir -p output
           find openwrt/bin/targets/ar71xx/tiny/ -type f -name "*tl-wr941nd-v5*.bin" -exec cp {} output/ \;
+          mkdir -p output/packages
+          find openwrt/bin/packages/ -type f -name "*.ipk" -exec cp {} output/packages/ \; || true
+          find openwrt/bin/targets/ar71xx/tiny/packages/ -type f -name "*.ipk" -exec cp {} output/packages/ \; || true
           cd output
-          sha256sum *.bin > sha256sums.txt
-          echo "=== FIRMWARE ARTIFACTS ==="
+          if [ -d "packages" ] && [ "$(ls -A packages)" ]; then
+            tar -czf packages-mips_74kc.tar.gz -C packages .
+            rm -rf packages
+          fi
+          sha256sum *.bin *.tar.gz > sha256sums.txt 2>/dev/null || sha256sum *.bin > sha256sums.txt
+          echo "=== FIRMWARE & PACKAGES ARTIFACTS ==="
           ls -lh
           cat sha256sums.txt
 
@@ -110,3 +119,24 @@ jobs:
         with:
           name: openwrt-18.06-tl-wr941nd-v5-custom
           path: output/*
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/heads/main')
+        with:
+          tag_name: v1.1.0-custom
+          name: OpenWrt 18.06 (TL-WR941ND v5) - Dropbear 2020 & Net Fix
+          body: |
+            OpenWrt 18.06.9 Custom Firmware for TP-Link TL-WR941ND v5 (AR9341, 4MB Flash / 32MB RAM).
+            
+            Key features:
+            - MIPS 74Kc CPU architecture optimization
+            - Dropbear 2020.81 (Ed25519 & Chacha20-Poly1305 support)
+            - Fixed firewall routing & masquerade for Repeater STA mode (wwan zone)
+            - Forced DNS 1.1.1.1 / 8.8.8.8 push via DHCP Option 6 (resolves iPhone/client DNS issues)
+            - LuCI Web UI included
+            - Includes all compiled .ipk packages in packages-mips_74kc.tar.gz
+          files: output/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
