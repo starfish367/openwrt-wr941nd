@@ -18,6 +18,9 @@ jobs:
     container:
       image: ubuntu:20.04
       options: --user root
+    env:
+      FORCE_UNSAFE_CONFIGURE: 1
+
 
     steps:
       - name: Maximize Build Space
