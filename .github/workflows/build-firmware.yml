@@ -1,0 +1,101 @@
+name: Build OpenWrt 18.06 Custom Kernel (TL-WR941ND v5)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/**'
+      - 'files/**'
+      - 'patches/**'
+      - 'seed.config'
+
+jobs:
+  build:
+    name: Build OpenWrt 18.06 Firmware
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:20.04
+      options: --user root
+
+    steps:
+      - name: Maximize Build Space
+        run: |
+          df -h
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Build Dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends \
+            build-essential ccache ecj fastjar file g++ gawk \
+            gettext git libncurses5-dev libssl-dev subversion \
+            unzip zlib1g-dev python2 python3 wget bzip2 ca-certificates \
+            patch rsync xsltproc
+          ln -sf /usr/bin/python2 /usr/bin/python
+
+      - name: Clone OpenWrt 18.06 Source
+        run: |
+          git clone -b openwrt-18.06 --depth 1 https://git.openwrt.org/openwrt/openwrt.git openwrt
+          cd openwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Apply Kernel & WiFi Driver Patches
+        run: |
+          cd openwrt
+          # 1. Embed custom rootfs configuration
+          if [ -d "../files" ]; then
+            cp -r ../files files
+          fi
+
+          # 2. Kernel C Tuning: Optimize for MIPS 74Kc CPU
+          # Chuyển target CPU từ generic 24kc sang 74kc (tối ưu pipeline chip AR9341)
+          sed -i 's/CPU_TYPE:=24kc/CPU_TYPE:=74kc/g' target/linux/ar71xx/Makefile || true
+
+          # 3. Kernel Slimming: Cắt gọt nhân Linux 4.9 để tiết kiệm Flash & RAM
+          cat << 'EOF' >> target/linux/ar71xx/config-4.9
+          # CONFIG_KALLSYMS is not set
+          # CONFIG_DEBUG_FS is not set
+          # CONFIG_PRINTK_TIME is not set
+          # CONFIG_BUG is not set
+          CONFIG_LOG_BUF_SHIFT=13
+          EOF
+
+          # 4. Driver ath9k: Tắt giới hạn regulatory lock cứng
+          find package/kernel/mac80211/ -type f -name "regd.c" -exec sed -i 's/if (country == CTRY_DEFAULT)/if (0)/g' {} + || true
+
+      - name: Configure Target & Packages
+        run: |
+          cd openwrt
+          cp ../seed.config .config
+          make defconfig
+
+      - name: Compile Toolchain, Kernel and Firmware
+        run: |
+          cd openwrt
+          echo "Starting OpenWrt build with $(nproc) threads..."
+          git config --global --add safe.directory '*'
+          make -j$(nproc) || make -j1 V=s
+
+      - name: Organize Firmware Output
+        id: organize
+        run: |
+          mkdir -p output
+          find openwrt/bin/targets/ar71xx/tiny/ -type f -name "*tl-wr941nd-v5*.bin" -exec cp {} output/ \;
+          cd output
+          sha256sum *.bin > sha256sums.txt
+          echo "=== FIRMWARE ARTIFACTS ==="
+          ls -lh
+          cat sha256sums.txt
+
+      - name: Upload Firmware Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwrt-18.06-tl-wr941nd-v5-custom
+          path: output/*

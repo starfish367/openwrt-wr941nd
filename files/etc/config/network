@@ -1,0 +1,37 @@
+config interface 'loopback'
+	option ifname 'lo'
+	option proto 'static'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
+
+config globals 'globals'
+	option ula_prefix 'fd6f:c7e7:094a::/48'
+
+config interface 'lan'
+	option type 'bridge'
+	option ifname 'eth1.1'
+	option proto 'static'
+	option netmask '255.255.255.0'
+	option ipaddr '182.68.0.1'
+	option dns '45.90.28.125 45.90.30.125'
+	option igmp_snooping '1'
+
+config interface 'wan'
+	option ifname 'eth0'
+	option proto 'dhcp'
+
+config switch
+	option name 'switch0'
+	option reset '1'
+	option enable_vlan '1'
+
+config switch_vlan
+	option device 'switch0'
+	option vlan '1'
+	option ports '1 2 3 4 0t'
+
+config interface 'wwan'
+	option proto 'dhcp'
+	option metric '10'
+	option peerdns '0'
+	option dns '45.90.28.125 45.90.30.125'
