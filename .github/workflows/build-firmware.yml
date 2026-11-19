@@ -83,6 +83,13 @@ jobs:
             cp -r ../custom_packages/dropbear package/network/services/dropbear
           fi
 
+          # 6. Upgrade Dnsmasq to 2.90 (Patches DNSpooq CVEs, Faster 17.5k Rules Lookup)
+          if [ -d "../custom_packages/dnsmasq" ]; then
+            echo "Upgrading Dnsmasq package to 2.90..."
+            rm -rf package/network/services/dnsmasq
+            cp -r ../custom_packages/dnsmasq package/network/services/dnsmasq
+          fi
+
       - name: Configure Target & Packages
         run: |
           cd openwrt
@@ -124,16 +131,18 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main')
         with:
-          tag_name: v1.1.0-custom
-          name: OpenWrt 18.06 (TL-WR941ND v5) - Dropbear 2020 & Net Fix
+          tag_name: v1.2.0-custom
+          name: OpenWrt 18.06 (TL-WR941ND v5) - Dnsmasq 2.90, Dropbear 2020 & 17.5k Adblock
           body: |
-            OpenWrt 18.06.9 Custom Firmware for TP-Link TL-WR941ND v5 (AR9341, 4MB Flash / 32MB RAM).
+            OpenWrt 18.06 Custom Firmware for TP-Link TL-WR941ND v5 (AR9341, 4MB Flash / 32MB RAM).
             
-            Key features:
-            - MIPS 74Kc CPU architecture optimization
-            - Dropbear 2020.81 (Ed25519 & Chacha20-Poly1305 support)
+            Key upgrades in v1.2.0:
+            - Dnsmasq upgraded to 2.90 (Patches DNSpooq CVEs, optimized 17.5k rules lookup)
+            - Dropbear 2020.81 (Ed25519, Curve25519 & Chacha20-Poly1305 support)
+            - Built-in 17.597 adblock & adult filter rules (/etc/blocklist.gz auto-decompressed into RAM)
+            - Control D Family DNS upstream (76.76.2.3 / 76.76.10.3) + Cloudflare Family (1.1.1.3)
+            - Google & Bing SafeSearch native VIP enforcement (216.239.38.120 / 204.79.197.220)
             - Fixed firewall routing & masquerade for Repeater STA mode (wwan zone)
-            - Forced DNS 1.1.1.1 / 8.8.8.8 push via DHCP Option 6 (resolves iPhone/client DNS issues)
             - LuCI Web UI included
             - Includes all compiled .ipk packages in packages-mips_74kc.tar.gz
           files: output/*
