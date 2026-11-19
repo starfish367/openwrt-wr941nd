@@ -1,12 +1,13 @@
-# Put your custom commands here that should be executed once
-# the system init finished. By default this file does nothing.
-
-# Enforce fq_codel queue discipline on all network interfaces to kill bufferbloat
+# Enforce fq_codel queue discipline on all network interfaces
 for iface in eth0 eth1 wlan0; do
     [ -d "/sys/class/net/$iface" ] && tc qdisc replace dev $iface root fq_codel 2>/dev/null || true
 done
 
-# Hardware offload & energy saving disable on radio
-iw phy phy0 set power_save off 2>/dev/null || true
+# Decompress 17,597 rules into RAM on boot
+if [ -f /etc/blocklist.gz ]; then
+    mkdir -p /tmp/dnsmasq.d
+    zcat /etc/blocklist.gz > /tmp/dnsmasq.d/blocklist.conf
+    /etc/init.d/dnsmasq reload 2>/dev/null || true
+fi
 
 exit 0
