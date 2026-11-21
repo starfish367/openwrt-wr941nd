@@ -1,0 +1,11 @@
+config core 'main'
+	option lang 'vi'
+	option mediaurlbase '/luci-static/bootstrap'
+	option resourcebase '/luci-static/resources'
+	option ubuspath '/ubus/'
+
+config cbi 'apply'
+	option rollback '30'
+	option holdoff '4'
+	option timeout '5'
+	option display '1'

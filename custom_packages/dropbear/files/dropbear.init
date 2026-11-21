@@ -127,9 +127,19 @@ boot()
 	start "$@"
 }
 
+validate_key()
+{
+	local file="$1"
+	[ -s "$file" ] || return 1
+	local size=$(wc -c < "$file" 2>/dev/null || echo 0)
+	[ "$size" -gt 400 ] && return 0
+	rm -f "$file"
+	return 1
+}
+
 start_service()
 {
-	[ -s /etc/dropbear/dropbear_rsa_host_key ] || keygen
+	validate_key /etc/dropbear/dropbear_rsa_host_key || keygen
 
 	. /lib/functions.sh
 	. /lib/functions/network.sh
